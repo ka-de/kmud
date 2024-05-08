@@ -21,7 +21,7 @@ export var rooms = {
     },
     'locked_room': {
         'description': 'You find a locked room. The door seems sturdy and impossible to break down.',
-        'exits': { 'east': 'end', 'west': 'hall' },
+        'exits': { 'west': 'hall' },
         'items': [],
         'coordinates': { 'x': 50, 'y': 25 }
     },
