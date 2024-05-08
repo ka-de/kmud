@@ -3,6 +3,8 @@
 import { races } from './races.js';
 import { rooms } from './rooms.js';
 import { items } from './items.js';
+import { readBook, useKey } from './use.js';
+import { displayWelcomeMessage } from './utils.js';
 import {
   EntityManager,
   PositionComponent,
@@ -10,51 +12,23 @@ import {
   StatsComponent,
 } from './ecs.js';
 
-var currentRoom = 'start';
+export var currentRoom = 'start';
 var discoveredRooms = [currentRoom];
 
-const entityManager = new EntityManager();
+export const entityManager = new EntityManager();
 
-function generateRace() {
+export function generateRace() {
     var randomIndex = Math.floor(Math.random() * races.length);
     return races[randomIndex];
 }
 
-var playerRace = generateRace();
-var playerStats = playerRace[2];
+export var playerRace = generateRace();
+export var playerStats = playerRace[2];
 
-const playerId = entityManager.createEntity();
+export const playerId = entityManager.createEntity();
 entityManager.addComponent(playerId, new PositionComponent(25, 50)); // Initial position
 entityManager.addComponent(playerId, new InventoryComponent());
 entityManager.addComponent(playerId, new StatsComponent(...Object.values(playerStats)));
-
-function readBook(itemId) {
-  var output = document.getElementById('output');
-  const inventoryComponent = entityManager.getComponent(playerId, 'InventoryComponent');
-  if (inventoryComponent.items.includes(itemId)) {
-    output.value += 'You read ' + items[itemId].name + ':\n';
-    output.value += items[itemId].description + '\n';
-  } else {
-    output.value += 'You do not have that book.\n';
-  }
-}
-
-function useKey(itemId) {
-  var output = document.getElementById('output');
-  const inventoryComponent = entityManager.getComponent(playerId, 'InventoryComponent');
-  if (inventoryComponent.items.includes(itemId)) {
-    if (currentRoom === 'locked_room') {
-      output.value += 'You use the key to unlock the door.\n';
-      rooms['locked_room'].description = 'The door you unlocked earlier is open now.';
-      rooms['locked_room'].exits = { 'west': 'hall', 'east': 'end' }; // Add the 'east' exit after unlocking
-      updateMinimap();
-    } else {
-      output.value += 'There is nothing to use the key on here.\n';
-    }
-  } else {
-    output.value += 'You do not have a key.\n';
-  }
-}
 
 window.sendCommand = function (event) {
   if (event.key !== 'Enter') return;
@@ -141,7 +115,7 @@ window.sendCommand = function (event) {
 }
 
 // New function to list items in the current room
-function listItemsInRoom() {
+export function listItemsInRoom() {
   var output = document.getElementById('output');
   var roomItems = rooms[currentRoom].items;
   if (roomItems.length > 0) {
@@ -154,22 +128,12 @@ function listItemsInRoom() {
   }
 }
 
-function displayWelcomeMessage() {
-  var output = document.getElementById('output');
-  output.value += 'Welcome to KMUD!\n\n';
-  output.value += 'You are a ' + playerRace[1] + '.\n';
-  output.value += 'Your stats are: Stamina ' + playerStats['Stamina'] + ', Intellect ' + playerStats['Intellect'] + ', Agility ' + playerStats['Agility'] + ', Strength ' + playerStats['Strength'] + '.\n';
-  output.value += rooms[currentRoom].description + '\n';
-  output.value += 'Possible commands: ' + Object.keys(rooms[currentRoom].exits).join(', ') + '\n';
-  updateMinimap();
-}
-
 window.onload = function () {
   displayWelcomeMessage();
   updateMinimap();
 };
 
-function updateMinimap() {
+export function updateMinimap() {
     var minimap = document.getElementById('minimap');
     var ctx = minimap.getContext('2d');
     ctx.clearRect(0, 0, minimap.width, minimap.height);
@@ -218,7 +182,5 @@ function updateMinimap() {
     ctx.fillRect(coordinates.x, coordinates.y, 10, 10);
 }
 
-
-  // Call updateMinimap on startup to display the starting room
-  updateMinimap();
-
+// Call updateMinimap on startup to display the starting room
+updateMinimap();
