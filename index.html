@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>KMUD</title>
+  <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+</head>
+<body class="bg-gray-800 text-white">
+    <textarea id="output" aria-label="Game output" readonly class="w-full h-64 bg-gray-900 text-white p-4 mb-4"></textarea><br>
+    <input type="text" id="input" class="w-full bg-gray-900 text-white p-2 mb-4" placeholder="Enter command here" onkeydown="sendCommand(event)">
+    <button onclick="sendCommand()" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">Send</button>
+    <canvas id="minimap" width="300" height="300" class="mt-4"></canvas>
+</body>
+<script type="module" src="main.js"></script>
+</html>
