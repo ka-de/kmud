@@ -9,7 +9,7 @@ export var rooms = {
     },
     'hall': {
         'description': 'You are in a long hallway. There is a door to the south, and the hallway continues to the east and west.',
-        'exits': { 'east': 'library', 'west': 'locked_room', 'south': 'start' },
+        'exits': { 'west': 'library', 'east': 'locked_room', 'south': 'start' },
         'items': [120],
         'coordinates': { 'x': 25, 'y': 25 }
     },
@@ -21,13 +21,13 @@ export var rooms = {
     },
     'locked_room': {
         'description': 'You find a locked room. The door seems sturdy and impossible to break down.',
-        'exits': { 'east': 'hall' },
+        'exits': { 'east': 'end', 'west': 'hall' },
         'items': [],
         'coordinates': { 'x': 50, 'y': 25 }
     },
     'end': {
         'description': 'You have found the end of the game. Congratulations!',
-        'exits': { 'west': 'hall' },
+        'exits': { 'west': 'locked_room' },
         'items': [],
         'coordinates': { 'x': 75, 'y': 25 }
     }

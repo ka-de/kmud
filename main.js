@@ -3,9 +3,17 @@
 import { races } from './races.js';
 import { rooms } from './rooms.js';
 import { items } from './items.js';
+import {
+  EntityManager,
+  PositionComponent,
+  InventoryComponent,
+  StatsComponent,
+} from './ecs.js';
 
 var currentRoom = 'start';
 var discoveredRooms = [currentRoom];
+
+const entityManager = new EntityManager();
 
 function generateRace() {
     var randomIndex = Math.floor(Math.random() * races.length);
@@ -15,158 +23,150 @@ function generateRace() {
 var playerRace = generateRace();
 var playerStats = playerRace[2];
 
-var player = {
-    'race': playerRace,
-    'stats': playerStats,
-    'inventory': []
-};
+const playerId = entityManager.createEntity();
+entityManager.addComponent(playerId, new PositionComponent(25, 50)); // Initial position
+entityManager.addComponent(playerId, new InventoryComponent());
+entityManager.addComponent(playerId, new StatsComponent(...Object.values(playerStats)));
 
 function readBook(itemId) {
-    var output = document.getElementById('output');
-    if (player.inventory.includes(itemId)) {
-        output.value += 'You read ' + items[itemId].name + ':\n';
-        output.value += items[itemId].description + '\n';
-    } else {
-        output.value += 'You do not have that book.\n';
-    }
+  var output = document.getElementById('output');
+  const inventoryComponent = entityManager.getComponent(playerId, 'InventoryComponent');
+  if (inventoryComponent.items.includes(itemId)) {
+    output.value += 'You read ' + items[itemId].name + ':\n';
+    output.value += items[itemId].description + '\n';
+  } else {
+    output.value += 'You do not have that book.\n';
+  }
 }
 
 function useKey(itemId) {
-    var output = document.getElementById('output');
-    if (player.inventory.includes(itemId)) {
-        if (currentRoom === 'locked_room') {
-            output.value += 'You use the key to unlock the door.\n';
-            rooms['locked_room'].description = 'The door you unlocked earlier is open now.';
-            updateMinimap();
-        } else {
-            output.value += 'There is nothing to use the key on here.\n';
-        }
+  var output = document.getElementById('output');
+  const inventoryComponent = entityManager.getComponent(playerId, 'InventoryComponent');
+  if (inventoryComponent.items.includes(itemId)) {
+    if (currentRoom === 'locked_room') {
+      output.value += 'You use the key to unlock the door.\n';
+      rooms['locked_room'].description = 'The door you unlocked earlier is open now.';
+      rooms['locked_room'].exits = { 'west': 'hall', 'east': 'end' }; // Add the 'east' exit after unlocking
+      updateMinimap();
     } else {
-        output.value += 'You do not have a key.\n';
+      output.value += 'There is nothing to use the key on here.\n';
     }
+  } else {
+    output.value += 'You do not have a key.\n';
+  }
 }
 
-function pickUpItem(itemName) {
-    // Find the item ID that corresponds to the item name
-    var itemId = Object.keys(items).find(id => items[id].name.toLowerCase() === itemName.toLowerCase());
+window.sendCommand = function (event) {
+  if (event.key !== 'Enter') return;
+  event.preventDefault();
+  var input = document.getElementById('input');
+  var output = document.getElementById('output');
+  var command = input.value.toLowerCase(); // Convert command to lowercase
+  input.value = '';
 
-    // Convert itemId to a number
+  // Check if the command starts with 'pick up'
+  if (command.startsWith('pick up ')) {
+    var item = command.slice(8); // Get the item name
+    var itemId = Object.keys(items).find(id => items[id].name.toLowerCase() === item.toLowerCase());
     var itemIdNumber = Number(itemId);
 
     if (itemId && rooms[currentRoom].items.includes(itemIdNumber)) {
-        player.inventory.push(itemIdNumber);
-        rooms[currentRoom].items.splice(rooms[currentRoom].items.indexOf(itemIdNumber), 1);
-        output.value += 'Picked up ' + items[itemId].name + '.\n';
+      const inventoryComponent = entityManager.getComponent(playerId, 'InventoryComponent');
+      inventoryComponent.addItem(itemIdNumber);
+      rooms[currentRoom].items.splice(rooms[currentRoom].items.indexOf(itemIdNumber), 1);
+      output.value += 'Picked up ' + items[itemId].name + '.\n';
     } else {
-        output.value += 'No such item here.\n';
+      output.value += 'No such item here.\n';
     }
-}
-
-
-function dropItem(itemName) {
-    // Find the item ID that corresponds to the item name
-    var itemId = Object.keys(items).find(id => items[id].name.toLowerCase() === itemName.toLowerCase());
-
-    // Convert itemId to a number
+  }
+  // Check if the command starts with 'drop'
+  else if (command.startsWith('drop ')) {
+    var item = command.slice(5); // Get the item name
+    var itemId = Object.keys(items).find(id => items[id].name.toLowerCase() === item.toLowerCase());
     var itemIdNumber = Number(itemId);
 
-    if (itemId && player.inventory.includes(itemIdNumber)) {
+    if (itemId) {
+      const inventoryComponent = entityManager.getComponent(playerId, 'InventoryComponent');
+      if (inventoryComponent.items.includes(itemIdNumber)) {
+        inventoryComponent.removeItem(itemIdNumber);
         rooms[currentRoom].items.push(itemIdNumber);
-        player.inventory.splice(player.inventory.indexOf(itemIdNumber), 1);
         output.value += 'Dropped ' + items[itemId].name + '.\n';
-    } else {
+      } else {
         output.value += 'You do not have that item.\n';
+      }
     }
-}
-
-
-window.sendCommand = function(event) {
-    if (event.key !== 'Enter') return;
-    event.preventDefault();
-    var input = document.getElementById('input');
-    var output = document.getElementById('output');
-    var command = input.value.toLowerCase(); // Convert command to lowercase
-    input.value = '';
-
-    // Check if the command starts with 'pick up'
-    if (command.startsWith('pick up ')) {
-        var item = command.slice(8); // Get the item name
-        pickUpItem(item);
-    } 
-    // Check if the command starts with 'drop'
-    else if (command.startsWith('drop ')) {
-        var item = command.slice(5); // Get the item name
-        dropItem(item);
-    } 
-    // Handle movement commands
-    else if (command in rooms[currentRoom].exits) {
-        currentRoom = rooms[currentRoom].exits[command];
-        if (!discoveredRooms.includes(currentRoom)) {
-            discoveredRooms.push(currentRoom);
-        }
-        output.value += rooms[currentRoom].description + '\n';
-        listItemsInRoom(); // List items in the new room
-    } 
-    // Check if the command starts with 'read'
-    else if (command.startsWith('read ')) {
-        var bookName = command.slice(5); // Get the book name
-        var bookId = Object.keys(items).find(id => items[id].name.toLowerCase() === bookName.toLowerCase());
-        if (bookId) {
-            readBook(Number(bookId));
-        } else {
-            output.value += 'There is no book with that name.\n';
-        }
+  }
+  // Handle movement commands
+  else if (command in rooms[currentRoom].exits) {
+    const nextRoom = rooms[currentRoom].exits[command];
+    const positionComponent = entityManager.getComponent(playerId, 'PositionComponent');
+    positionComponent.x = rooms[nextRoom].coordinates.x;
+    positionComponent.y = rooms[nextRoom].coordinates.y;
+    currentRoom = nextRoom;
+    if (!discoveredRooms.includes(currentRoom)) {
+      discoveredRooms.push(currentRoom);
     }
-    // Check if the command starts with 'use'
-    else if (command.startsWith('use ')) {
-        var itemName = command.slice(4); // Get the item name
-        var itemId = Object.keys(items).find(id => items[id].name.toLowerCase() === itemName.toLowerCase());
-        if (itemId) {
-            useKey(Number(itemId));
-        } else {
-            output.value += 'You do not have that item.\n';
-        }
+    output.value += rooms[currentRoom].description + '\n';
+    listItemsInRoom(); // List items in the new room
+  }
+  // Check if the command starts with 'read'
+  else if (command.startsWith('read ')) {
+    var bookName = command.slice(5); // Get the book name
+    var bookId = Object.keys(items).find(id => items[id].name.toLowerCase() === bookName.toLowerCase());
+    if (bookId) {
+      readBook(Number(bookId));
+    } else {
+      output.value += 'There is no book with that name.\n';
     }
-    else {
-        output.value += 'Invalid command.\n';
+  }
+  // Check if the command starts with 'use'
+  else if (command.startsWith('use ')) {
+    var itemName = command.slice(4); // Get the item name
+    var itemId = Object.keys(items).find(id => items[id].name.toLowerCase() === itemName.toLowerCase());
+    if (itemId) {
+      useKey(Number(itemId));
+    } else {
+      output.value += 'You do not have that item.\n';
     }
+  } else {
+    output.value += 'Invalid command.\n';
+  }
 
+  // Display possible commands
+  output.value += 'Possible commands: ' + Object.keys(rooms[currentRoom].exits).join(', ') + ', pick up [item], drop [item]\n';
+  updateMinimap();
 
-    // Display possible commands
-    output.value += 'Possible commands: ' + Object.keys(rooms[currentRoom].exits).join(', ') + ', pick up [item], drop [item]\n';
-    updateMinimap();
-
-    // Scroll to the bottom of the output element
-    output.scrollTop = output.scrollHeight;
+  // Scroll to the bottom of the output element
+  output.scrollTop = output.scrollHeight;
 }
 
 // New function to list items in the current room
 function listItemsInRoom() {
-    var output = document.getElementById('output');
-    var roomItems = rooms[currentRoom].items;
-    if (roomItems.length > 0) {
-        output.value += 'Items in this room:\n';
-        roomItems.forEach(function(itemId) {
-            output.value += '- ' + items[itemId].name + ': ' + items[itemId].description + '\n';
-        });
-    } else {
-        output.value += 'No items to pick up in this room.\n';
-    }
+  var output = document.getElementById('output');
+  var roomItems = rooms[currentRoom].items;
+  if (roomItems.length > 0) {
+    output.value += 'Items in this room:\n';
+    roomItems.forEach(function (itemId) {
+      output.value += '- ' + items[itemId].name + ': ' + items[itemId].description + '\n';
+    });
+  } else {
+    output.value += 'No items to pick up in this room.\n';
+  }
 }
 
 function displayWelcomeMessage() {
-    var output = document.getElementById('output');
-    output.value += 'Welcome to KMUD!\n\n';
-    output.value += 'You are a ' + playerRace[1] + '.\n';
-    output.value += 'Your stats are: Stamina ' + playerStats['Stamina'] + ', Intellect ' + playerStats['Intellect'] + ', Agility ' + playerStats['Agility'] + ', Strength ' + playerStats['Strength'] + '.\n';
-    output.value += rooms[currentRoom].description + '\n';
-    output.value += 'Possible commands: ' + Object.keys(rooms[currentRoom].exits).join(', ') + '\n';
-    updateMinimap();
+  var output = document.getElementById('output');
+  output.value += 'Welcome to KMUD!\n\n';
+  output.value += 'You are a ' + playerRace[1] + '.\n';
+  output.value += 'Your stats are: Stamina ' + playerStats['Stamina'] + ', Intellect ' + playerStats['Intellect'] + ', Agility ' + playerStats['Agility'] + ', Strength ' + playerStats['Strength'] + '.\n';
+  output.value += rooms[currentRoom].description + '\n';
+  output.value += 'Possible commands: ' + Object.keys(rooms[currentRoom].exits).join(', ') + '\n';
+  updateMinimap();
 }
 
-window.onload = function() {
-    displayWelcomeMessage();
-    updateMinimap();
+window.onload = function () {
+  displayWelcomeMessage();
+  updateMinimap();
 };
 
 function updateMinimap() {

@@ -60,31 +60,3 @@ export class StatsComponent {
     this.strength = strength;
   }
 }
-
-export class MovementSystem {
-  constructor(entities) {
-    this.entities = entities;
-  }
-
-  update(entity, nextRoom) {
-    const positionComponent = this.entities[entity].PositionComponent;
-    positionComponent.x = rooms[nextRoom].coordinates.x;
-    positionComponent.y = rooms[nextRoom].coordinates.y;
-  }
-}
-
-export class InventorySystem {
-  constructor(entities) {
-    this.entities = entities;
-  }
-
-  pickUpItem(entity, itemId) {
-    const inventoryComponent = this.entities[entity].InventoryComponent;
-    inventoryComponent.addItem(itemId);
-  }
-
-  dropItem(entity, itemId) {
-    const inventoryComponent = this.entities[entity].InventoryComponent;
-    inventoryComponent.removeItem(itemId);
-  }
-}
